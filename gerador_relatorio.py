@@ -58,6 +58,26 @@ class Tarefa:
 NOME_ARQUIVO_PLANEJAMENTO = "planejamento_store.json"
 NOME_ARQUIVO_REGRAS = "regras_recorrentes.json"
 
+MAPA_DIAS_USUARIO_PARA_PYTHON = {
+    2: 0, 
+    3: 1, 
+    4: 2, 
+    5: 3, 
+    6: 4, 
+    7: 5, 
+    1: 6  
+}
+
+MAPA_PYTHON_PARA_USUARIO_TEXTO = {
+    0: "Seg (2)", 
+    1: "Ter (3)", 
+    2: "Qua (4)", 
+    3: "Qui (5)", 
+    4: "Sex (6)", 
+    5: "Sab (7)", 
+    6: "Dom (1)"
+}
+
 def carregar_regras():
     try:
         with open(NOME_ARQUIVO_REGRAS, "r", encoding="utf-8") as f:
@@ -476,8 +496,8 @@ def gerenciar_regras_menu(regras):
                 if regra['tipo'] == 'diaria':
                     print(f"  [{i}] '{titulo}' (Diária)")
                 elif regra['tipo'] == 'semanal':
-                    dias = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"]
-                    print(f"  [{i}] '{titulo}' (Semanal: toda {dias[regra['dia_semana']]})")
+                    dia_texto = MAPA_PYTHON_PARA_USUARIO_TEXTO.get(regra['dia_semana'], "Inválido")
+                    print(f"  [{i}] '{titulo}' (Semanal: toda {dia_texto})")
                 elif regra['tipo'] == 'mensal':
                     print(f"  [{i}] '{titulo}' (Mensal: todo dia {regra['dia_mes']})")
 
@@ -524,9 +544,10 @@ def adicionar_regra_recorrente(regras):
         nova_regra = {"tipo": "diaria"}
     elif tipo_regra_str == '2':
         try:
-            dia_semana = int(input("Digite o dia da semana (0=Seg, 1=Ter, ..., 6=Dom): "))
-            if 0 <= dia_semana <= 6:
-                nova_regra = {"tipo": "semanal", "dia_semana": dia_semana}
+            dia_usuario = int(input("Digite o dia da semana (1=Dom, 2=Seg, 3=Ter, ..., 7=Sab): "))
+            if dia_usuario in MAPA_DIAS_USUARIO_PARA_PYTHON:
+                dia_semana_interno = MAPA_DIAS_USUARIO_PARA_PYTHON[dia_usuario]
+                nova_regra = {"tipo": "semanal", "dia_semana": dia_semana_interno}
             else:
                 raise ValueError
         except ValueError:
