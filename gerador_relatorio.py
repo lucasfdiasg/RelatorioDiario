@@ -170,7 +170,12 @@ def mostrar_dashboard(data, pendentes, em_andamento, realizado):
     else:
         for tarefa_obj in realizado:
             periodo_str = f"({tarefa_obj.periodo})" if tarefa_obj.periodo else ""
-            print(f"  [✓] {tarefa_obj.titulo} {periodo_str}")
+            print(f"\n  [✓] {tarefa_obj.titulo} {periodo_str}")
+            if tarefa_obj.subtarefas:
+                print(f"      Sub-tarefas:")
+                for j, sub in enumerate(tarefa_obj.subtarefas, start=1):
+                    check = "✓" if sub.concluida else " "
+                    print(f"        [{j}] [{check}] {sub.titulo}")
     
     print("\n" + "-" * 40)
 
@@ -712,7 +717,7 @@ def gerar_relatorio_e_salvar_SIMPLES(data, pendentes, em_andamento, realizado, d
     
     def formatar_subtarefa_relatorio(subtarefa):
         check = "✅" if subtarefa.concluida else ""
-        return f"\t\t- {subtarefa.titulo} {check}\n"
+        return f"\t> {subtarefa.titulo} {check}\n"
 
     try:
         with open(nome_arquivo_relatorio, "w", encoding="utf-8") as f:
