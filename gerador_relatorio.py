@@ -56,35 +56,53 @@ class Tarefa:
         )
 
 NOME_ARQUIVO_PLANEJAMENTO = "planejamento_store.json"
+NOME_ARQUIVO_REGRAS = "regras_recorrentes.json"
+
+def carregar_regras():
+    try:
+        with open(NOME_ARQUIVO_REGRAS, "r", encoding="utf-8") as f:
+            regras = json.load(f)
+        return regras
+    except FileNotFoundError:
+        return []
+    except Exception as e:
+        print(f"Erro ao carregar regras: {e}")
+        return []
+
+def salvar_regras(regras):
+    try:
+        with open(NOME_ARQUIVO_REGRAS, "w", encoding="utf-8") as f:
+            json.dump(regras, f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        print(f"ERRO ao salvar regras: {e}")
 
 def carregar_planejamento(data_hoje_iso):
     print("Verificando planejamento anterior...")
     try:
         with open(NOME_ARQUIVO_PLANEJAMENTO, "r", encoding="utf-8") as f:
             dados = json.load(f)
-            
-        data_salva = dados.get("data_salva")
         
-        if data_salva == data_hoje_iso:
-            print("Planejamento de hoje já está carregado. (App reaberto)")
-        else:
-            print(f"Carregando planejamento salvo de {data_salva}...")
+        data_salva = dados.get("data_salva")
         
         tarefas_pendentes_carregadas = [Tarefa.from_dict(t) for t in dados.get("a_fazer", [])]
         tarefas_em_andamento_carregadas = [Tarefa.from_dict(t) for t in dados.get("em_execucao", [])]
         
-        if data_salva != data_hoje_iso:
-            for t in tarefas_pendentes_carregadas + tarefas_em_andamento_carregadas:
-                t.periodo = None 
-        
-        return tarefas_pendentes_carregadas, tarefas_em_andamento_carregadas
+        if data_salva == data_hoje_iso:
+            print("Planejamento de hoje já está carregado. (App reaberto)")
+            return tarefas_pendentes_carregadas, tarefas_em_andamento_carregadas, True
+        else:
+            print(f"Carregando planejamento salvo de {data_salva}...")
+            if data_salva != data_hoje_iso:
+                for t in tarefas_pendentes_carregadas + tarefas_em_andamento_carregadas:
+                    t.periodo = None 
+            return tarefas_pendentes_carregadas, tarefas_em_andamento_carregadas, False
 
     except FileNotFoundError:
         print("Nenhum arquivo de planejamento encontrado. Começando um novo dia.")
-        return [], []
+        return [], [], False
     except Exception as e:
         print(f"Erro ao carregar planejamento: {e}")
-        return [], []
+        return [], [], False
 
 def salvar_planejamento(lista_pendentes, lista_em_andamento, data_hoje_iso):
     print("Salvando planejamento...")
@@ -153,9 +171,10 @@ def mostrar_menu():
     print("[3] Concluir tarefa (Mover de 'Em Andamento' -> 'Realizado')")
     print("[4] Gerenciar Sub-tarefas (Marcar/Desmarcar)")
     print("[5] Editar Tarefa (Título, Sub-tarefas)")
-    print("[6] Excluir Tarefa")
-    print("[7] Gerar Relatório do Dia e Salvar Planejamento")
-    print("[8] Sair (sem salvar relatório)")
+    print("[6] Gerenciar Tarefas Recorrentes")
+    print("[7] Excluir Tarefa")
+    print("[8] Gerar Relatório do Dia e Salvar Planejamento")
+    print("[9] Sair (sem salvar relatório)")
 
 def adicionar_nova_tarefa(lista_pendentes, lista_em_andamento, lista_realizado):
     print("--- Adicionar Nova Tarefa ---")
@@ -442,6 +461,112 @@ def editar_tarefa(pendentes, em_andamento):
         print("ERRO: Número da tarefa principal inválido.")
         time.sleep(1)
 
+def gerenciar_regras_menu(regras):
+    while True:
+        limpar_tela()
+        print("--- Gerenciador de Tarefas Recorrentes ---")
+        
+        if not regras:
+            print("\nNenhuma regra de recorrência cadastrada.")
+        else:
+            print("\nRegras Atuais:")
+            for i, regra_info in enumerate(regras, start=1):
+                titulo = regra_info['modelo']['titulo']
+                regra = regra_info['regra']
+                if regra['tipo'] == 'diaria':
+                    print(f"  [{i}] '{titulo}' (Diária)")
+                elif regra['tipo'] == 'semanal':
+                    dias = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"]
+                    print(f"  [{i}] '{titulo}' (Semanal: toda {dias[regra['dia_semana']]})")
+                elif regra['tipo'] == 'mensal':
+                    print(f"  [{i}] '{titulo}' (Mensal: todo dia {regra['dia_mes']})")
+
+        print("\n[1] Adicionar Nova Regra Recorrente")
+        print("[2] Excluir Regra Recorrente")
+        print("[V] Voltar ao Menu Principal")
+        
+        escolha = input("Escolha uma opção: ").strip().lower()
+
+        if escolha == '1':
+            adicionar_regra_recorrente(regras)
+            salvar_regras(regras)
+        elif escolha == '2':
+            excluir_regra_recorrente(regras)
+            salvar_regras(regras)
+        elif escolha == 'v':
+            break
+        else:
+            print("Opção inválida.")
+            time.sleep(1)
+
+def adicionar_regra_recorrente(regras):
+    print("\n--- Adicionar Nova Regra Recorrente ---")
+    titulo = input("Qual o TÍTULO da tarefa modelo? (Obrigatório): ")
+    if not titulo:
+        print("ERRO: O título não pode ser vazio."); time.sleep(1); return
+
+    modelo_tarefa = Tarefa(titulo)
+    print("\nAdicione SUB-TAREFAS modelo (Opcional, deixe em branco para parar):")
+    while True:
+        sub_titulo = input("  > ")
+        if not sub_titulo: break
+        modelo_tarefa.adicionar_subtarefa(sub_titulo)
+
+    print("\n--- Definir Regra de Recorrência ---")
+    print("[1] Diária (Todo dia)")
+    print("[2] Semanal (Um dia da semana)")
+    print("[3] Mensal (Um dia do mês)")
+    
+    tipo_regra_str = input("Escolha o tipo (1, 2 ou 3): ").strip()
+    nova_regra = {}
+
+    if tipo_regra_str == '1':
+        nova_regra = {"tipo": "diaria"}
+    elif tipo_regra_str == '2':
+        try:
+            dia_semana = int(input("Digite o dia da semana (0=Seg, 1=Ter, ..., 6=Dom): "))
+            if 0 <= dia_semana <= 6:
+                nova_regra = {"tipo": "semanal", "dia_semana": dia_semana}
+            else:
+                raise ValueError
+        except ValueError:
+            print("Dia da semana inválido. A regra não foi criada."); time.sleep(1); return
+    elif tipo_regra_str == '3':
+        try:
+            dia_mes = int(input("Digite o dia do mês (1-31): "))
+            if 1 <= dia_mes <= 31:
+                nova_regra = {"tipo": "mensal", "dia_mes": dia_mes}
+            else:
+                raise ValueError
+        except ValueError:
+            print("Dia do mês inválido. A regra não foi criada."); time.sleep(1); return
+    else:
+        print("Tipo de regra inválido. A regra não foi criada."); time.sleep(1); return
+
+    regras.append({
+        "modelo": modelo_tarefa.to_dict(),
+        "regra": nova_regra
+    })
+    print(f"\nRegra para '{titulo}' criada com sucesso!")
+    time.sleep(1)
+
+def excluir_regra_recorrente(regras):
+    if not regras:
+        print("Não há regras para excluir."); time.sleep(1); return
+    
+    print("\n--- Excluir Regra Recorrente ---")
+    try:
+        idx_str = input("Digite o NÚMERO da regra que deseja EXCLUIR: ")
+        idx = int(idx_str) - 1
+        if 0 <= idx < len(regras):
+            regra_excluida = regras.pop(idx)
+            print(f"Regra para '{regra_excluida['modelo']['titulo']}' foi excluída.")
+        else:
+            raise IndexError
+    except (ValueError, IndexError):
+        print("ERRO: Número inválido.")
+    time.sleep(1)
+
 
 def gerar_relatorio_e_salvar_SIMPLES(data, pendentes, em_andamento, realizado, data_hoje_iso):
     limpar_tela()
@@ -526,6 +651,37 @@ def gerar_relatorio_e_salvar_SIMPLES(data, pendentes, em_andamento, realizado, d
     input("\nPressione Enter para voltar ao menu...")
 
 
+def verificar_e_injetar_recorrentes(regras, tarefas_pendentes, tarefas_em_andamento, hoje_obj):
+    print("Verificando tarefas recorrentes...")
+    
+    dia_semana_hoje = hoje_obj.weekday()
+    dia_mes_hoje = hoje_obj.day
+    novas_tarefas_injetadas = []
+
+    titulos_existentes = {t.titulo for t in tarefas_pendentes} | {t.titulo for t in tarefas_em_andamento}
+
+    for regra_info in regras:
+        regra = regra_info['regra']
+        modelo = regra_info['modelo']
+        titulo_modelo = modelo['titulo']
+        
+        disparar = False
+        if regra['tipo'] == 'diaria':
+            disparar = True
+        elif regra['tipo'] == 'semanal' and regra['dia_semana'] == dia_semana_hoje:
+            disparar = True
+        elif regra['tipo'] == 'mensal' and regra['dia_mes'] == dia_mes_hoje:
+            disparar = True
+        
+        if disparar and (titulo_modelo not in titulos_existentes):
+            nova_tarefa_recorrente = Tarefa.from_dict(modelo)
+            novas_tarefas_injetadas.append(nova_tarefa_recorrente)
+            print(f"Injetando tarefa recorrente: {titulo_modelo}")
+            titulos_existentes.add(titulo_modelo)
+            
+    return novas_tarefas_injetadas + tarefas_pendentes
+
+
 def main():
     hoje_obj = datetime.datetime.now()
     
@@ -538,8 +694,12 @@ def main():
     hoje_formatado_iso = hoje_obj.date().isoformat() 
     
     print("Iniciando o Gerador de Relatórios...")
-    tarefas_pendentes, tarefas_em_andamento = carregar_planejamento(hoje_formatado_iso)
-    tarefas_realizado = []  
+    tarefas_pendentes, tarefas_em_andamento, mesmo_dia = carregar_planejamento(hoje_formatado_iso)
+    tarefas_realizado = []
+    
+    if not mesmo_dia:
+        regras = carregar_regras()
+        tarefas_pendentes = verificar_e_injetar_recorrentes(regras, tarefas_pendentes, tarefas_em_andamento, hoje_obj)
     
     if tarefas_pendentes or tarefas_em_andamento:
         salvar_planejamento(tarefas_pendentes, tarefas_em_andamento, hoje_formatado_iso)
@@ -550,7 +710,7 @@ def main():
         mostrar_dashboard(hoje_formatado_app, tarefas_pendentes, tarefas_em_andamento, tarefas_realizado)
         mostrar_menu()
         
-        escolha = input("Escolha uma opção (1-8): ")
+        escolha = input("Escolha uma opção (1-9): ")
         print()
 
         if escolha == '1':
@@ -574,13 +734,17 @@ def main():
             salvar_planejamento(tarefas_pendentes, tarefas_em_andamento, hoje_formatado_iso)
 
         elif escolha == '6':
+            regras_atuais = carregar_regras()
+            gerenciar_regras_menu(regras_atuais)
+        
+        elif escolha == '7':
             excluir_tarefa(tarefas_pendentes, tarefas_em_andamento)
             salvar_planejamento(tarefas_pendentes, tarefas_em_andamento, hoje_formatado_iso)
         
-        elif escolha == '7':
+        elif escolha == '8':
             gerar_relatorio_e_salvar_SIMPLES(hoje_formatado_app, tarefas_pendentes, tarefas_em_andamento, tarefas_realizado, hoje_formatado_iso)
         
-        elif escolha == '8':
+        elif escolha == '9':
             print("Saindo do Gerador de Relatórios...")
             salvar_planejamento(tarefas_pendentes, tarefas_em_andamento, hoje_formatado_iso)
             print("Planejamento atual salvo. Até mais!")
