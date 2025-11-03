@@ -70,14 +70,14 @@ def carregar_planejamento(data_hoje_iso):
         else:
             print(f"Carregando planejamento salvo de {data_salva}...")
         
-        tarefas_a_fazer_carregadas = [Tarefa.from_dict(t) for t in dados.get("a_fazer", [])]
-        tarefas_em_execucao_carregadas = [Tarefa.from_dict(t) for t in dados.get("em_execucao", [])]
+        tarefas_pendentes_carregadas = [Tarefa.from_dict(t) for t in dados.get("a_fazer", [])]
+        tarefas_em_andamento_carregadas = [Tarefa.from_dict(t) for t in dados.get("em_execucao", [])]
         
         if data_salva != data_hoje_iso:
-            for t in tarefas_a_fazer_carregadas + tarefas_em_execucao_carregadas:
+            for t in tarefas_pendentes_carregadas + tarefas_em_andamento_carregadas:
                 t.periodo = None 
         
-        return tarefas_a_fazer_carregadas, tarefas_em_execucao_carregadas
+        return tarefas_pendentes_carregadas, tarefas_em_andamento_carregadas
 
     except FileNotFoundError:
         print("Nenhum arquivo de planejamento encontrado. Começando um novo dia.")
@@ -86,11 +86,11 @@ def carregar_planejamento(data_hoje_iso):
         print(f"Erro ao carregar planejamento: {e}")
         return [], []
 
-def salvar_planejamento(lista_a_fazer, lista_em_execucao, data_hoje_iso):
+def salvar_planejamento(lista_pendentes, lista_em_andamento, data_hoje_iso):
     print("Salvando planejamento...")
     try:
-        dados_a_fazer = [tarefa.to_dict() for tarefa in lista_a_fazer]
-        dados_em_execucao = [tarefa.to_dict() for tarefa in lista_em_execucao]
+        dados_a_fazer = [tarefa.to_dict() for tarefa in lista_pendentes]
+        dados_em_execucao = [tarefa.to_dict() for tarefa in lista_em_andamento]
         
         dados_para_salvar = {
             "data_salva": data_hoje_iso,
@@ -110,14 +110,14 @@ def limpar_tela():
     if os.name == 'nt': os.system('cls')
     else: os.system('clear')
 
-def mostrar_dashboard(data, a_fazer, em_execucao, concluidas):
+def mostrar_dashboard(data, pendentes, em_andamento, realizado):
     limpar_tela()
     print(f"--- GERADOR DE RELATÓRIOS --- Dia: {data} ---")
     
-    print("\n[ ⏲️ A FAZER (Planejamento) ]:")
-    if not a_fazer: print("- Vazio")
+    print("\n[ ⏲️ PENDENTES (Planejamento) ]:")
+    if not pendentes: print("- Vazio")
     else:
-        for i, tarefa_obj in enumerate(a_fazer, start=1):
+        for i, tarefa_obj in enumerate(pendentes, start=1):
             print(f"\n  [{i}] {tarefa_obj.titulo}")
             if tarefa_obj.subtarefas:
                 print(f"      Sub-tarefas:")
@@ -125,10 +125,10 @@ def mostrar_dashboard(data, a_fazer, em_execucao, concluidas):
                     check = "✓" if sub.concluida else " "
                     print(f"        [{j}] [{check}] {sub.titulo}")
             
-    print("\n[ ✨ EM EXECUÇÃO ]:")
-    if not em_execucao: print("- Vazio")
+    print("\n[ ✨ EM ANDAMENTO ]:")
+    if not em_andamento: print("- Vazio")
     else:
-        for i, tarefa_obj in enumerate(em_execucao, start=1):
+        for i, tarefa_obj in enumerate(em_andamento, start=1):
             periodo_str = f"({tarefa_obj.periodo})" if tarefa_obj.periodo else ""
             print(f"\n  [{i}] {tarefa_obj.titulo} {periodo_str}")
             if tarefa_obj.subtarefas:
@@ -137,10 +137,10 @@ def mostrar_dashboard(data, a_fazer, em_execucao, concluidas):
                     check = "✓" if sub.concluida else " "
                     print(f"        [{j}] [{check}] {sub.titulo}")
 
-    print("\n[ ✅ CONCLUÍDAS ]:")
-    if not concluidas: print("- Vazio")
+    print("\n[ ✅ REALIZADO ]:")
+    if not realizado: print("- Vazio")
     else:
-        for tarefa_obj in concluidas:
+        for tarefa_obj in realizado:
             periodo_str = f"({tarefa_obj.periodo})" if tarefa_obj.periodo else ""
             print(f"  [✓] {tarefa_obj.titulo} {periodo_str}")
     
@@ -149,15 +149,15 @@ def mostrar_dashboard(data, a_fazer, em_execucao, concluidas):
 def mostrar_menu():
     print("MENU DE OPÇÕES:")
     print("[1] Adicionar nova tarefa")
-    print("[2] Ativar tarefa (Mover de 'A Fazer' -> 'Em Execução')")
-    print("[3] Concluir tarefa (Mover de 'Em Execução' -> 'Concluídas')")
+    print("[2] Ativar tarefa (Mover de 'Pendentes' -> 'Em Andamento')")
+    print("[3] Concluir tarefa (Mover de 'Em Andamento' -> 'Realizado')")
     print("[4] Gerenciar Sub-tarefas (Marcar/Desmarcar)")
     print("[5] Editar Tarefa (Título, Sub-tarefas)")
     print("[6] Excluir Tarefa")
     print("[7] Gerar Relatório do Dia e Salvar Planejamento")
     print("[8] Sair (sem salvar relatório)")
 
-def adicionar_nova_tarefa(lista_a_fazer, lista_em_execucao, lista_concluidas):
+def adicionar_nova_tarefa(lista_pendentes, lista_em_andamento, lista_realizado):
     print("--- Adicionar Nova Tarefa ---")
     titulo = input("Qual o TÍTULO da tarefa? (Obrigatório): ")
     if not titulo:
@@ -173,28 +173,28 @@ def adicionar_nova_tarefa(lista_a_fazer, lista_em_execucao, lista_concluidas):
         nova_tarefa.adicionar_subtarefa(sub_titulo)
     
     print("\n--- Onde adicionar esta tarefa? ---")
-    print("[1] ⏲️ A Fazer (Planejamento)")
-    print("[2] ✨ Em Execução")
-    print("[3] ✅ Concluída")
+    print("[1] ⏲️ Pendentes (Planejamento)")
+    print("[2] ✨ Em Andamento")
+    print("[3] ✅ Realizado")
     print("[C] Cancelar Adição")
     
     escolha_lista = input("Escolha a lista (1, 2, 3 ou C): ").strip().lower()
     
     if escolha_lista == '1':
-        lista_a_fazer.append(nova_tarefa)
-        print(f"\nTarefa '{nova_tarefa.titulo}' adicionada em 'A Fazer'!")
+        lista_pendentes.append(nova_tarefa)
+        print(f"\nTarefa '{nova_tarefa.titulo}' adicionada em 'Pendentes'!")
         
     elif escolha_lista == '2':
         periodo = perguntar_periodo()
         nova_tarefa.periodo = periodo
-        lista_em_execucao.append(nova_tarefa)
-        print(f"\nTarefa '{nova_tarefa.titulo}' adicionada em 'Em Execução' ({periodo})!")
+        lista_em_andamento.append(nova_tarefa)
+        print(f"\nTarefa '{nova_tarefa.titulo}' adicionada em 'Em Andamento' ({periodo})!")
         
     elif escolha_lista == '3':
         periodo = perguntar_periodo()
         nova_tarefa.periodo = periodo
-        lista_concluidas.append(nova_tarefa)
-        print(f"\nTarefa '{nova_tarefa.titulo}' adicionada em 'Concluídas' ({periodo})!")
+        lista_realizado.append(nova_tarefa)
+        print(f"\nTarefa '{nova_tarefa.titulo}' adicionada em 'Realizado' ({periodo})!")
         
     elif escolha_lista == 'c':
         print("\nAdição de tarefa cancelada.")
@@ -212,57 +212,57 @@ def perguntar_periodo():
             return periodo
         print("Opção inválida. Digite 'M' ou 'T'.")
 
-def ativar_tarefa(lista_a_fazer, lista_em_execucao):
-    print("--- Ativar Tarefa (Mover para 'Em Execução') ---")
-    if not lista_a_fazer:
-        print("Não há tarefas 'A Fazer' para ativar."); time.sleep(1); return
+def ativar_tarefa(lista_pendentes, lista_em_andamento):
+    print("--- Ativar Tarefa (Mover para 'Em Andamento') ---")
+    if not lista_pendentes:
+        print("Não há tarefas 'Pendentes' para ativar."); time.sleep(1); return
     try:
-        idx_str = input("Digite o NÚMERO da tarefa 'A Fazer' que deseja ativar: ")
+        idx_str = input("Digite o NÚMERO da tarefa 'Pendentes' que deseja ativar: ")
         idx = int(idx_str) - 1 
         if idx < 0: raise IndexError
 
         periodo = perguntar_periodo()
         
-        tarefa_movida = lista_a_fazer.pop(idx) 
+        tarefa_movida = lista_pendentes.pop(idx) 
         tarefa_movida.periodo = periodo 
-        lista_em_execucao.append(tarefa_movida)
+        lista_em_andamento.append(tarefa_movida)
         
-        print(f"Tarefa '{tarefa_movida.titulo}' movida para 'Em Execução' ({periodo})!")
+        print(f"Tarefa '{tarefa_movida.titulo}' movida para 'Em Andamento' ({periodo})!")
     except (ValueError, IndexError):
         print("ERRO: Número inválido.")
     time.sleep(1)
 
-def concluir_tarefa(lista_em_execucao, lista_concluidas):
+def concluir_tarefa(lista_em_andamento, lista_realizado):
     print("--- Concluir Tarefa ---")
-    if not lista_em_execucao:
-        print("Não há tarefas 'Em Execução' para concluir."); time.sleep(1); return
+    if not lista_em_andamento:
+        print("Não há tarefas 'Em Andamento' para concluir."); time.sleep(1); return
     try:
-        idx_str = input("Digite o NÚMERO da tarefa 'Em Execução' que deseja concluir: ")
+        idx_str = input("Digite o NÚMERO da tarefa 'Em Andamento' que deseja concluir: ")
         idx = int(idx_str) - 1 
         if idx < 0: raise IndexError
         
         periodo = perguntar_periodo()
         
-        tarefa_movida = lista_em_execucao.pop(idx)
+        tarefa_movida = lista_em_andamento.pop(idx)
         tarefa_movida.periodo = periodo 
-        lista_concluidas.append(tarefa_movida)
-        print(f"Tarefa '{tarefa_movida.titulo}' marcada como 'Concluída' ({periodo})!")
+        lista_realizado.append(tarefa_movida)
+        print(f"Tarefa '{tarefa_movida.titulo}' marcada como 'Realizado' ({periodo})!")
     except (ValueError, IndexError):
         print("ERRO: Número inválido.")
     time.sleep(1)
 
-def excluir_tarefa(a_fazer, em_execucao):
+def excluir_tarefa(pendentes, em_andamento):
     print("--- Excluir Tarefa Permanentemente ---")
     print("De qual lista você deseja excluir?")
-    print("[1] ⏲️ A Fazer")
-    print("[2] ✨ Em Execução")
+    print("[1] ⏲️ Pendentes")
+    print("[2] ✨ Em Andamento")
     print("[C] Cancelar")
     
     escolha_lista = input("Escolha a lista (1, 2 ou C): ").strip().lower()
     lista_alvo, nome_lista = None, ""
 
-    if escolha_lista == '1': lista_alvo, nome_lista = a_fazer, "A Fazer"
-    elif escolha_lista == '2': lista_alvo, nome_lista = em_execucao, "Em Execução"
+    if escolha_lista == '1': lista_alvo, nome_lista = pendentes, "Pendentes"
+    elif escolha_lista == '2': lista_alvo, nome_lista = em_andamento, "Em Andamento"
     elif escolha_lista == 'c': print("Operação cancelada."); time.sleep(1); return
     else: print("ERRO: Lista inválida."); time.sleep(1); return
     
@@ -279,18 +279,18 @@ def excluir_tarefa(a_fazer, em_execucao):
         print("ERRO: Número inválido.")
     time.sleep(1)
 
-def gerenciar_subtarefas(a_fazer, em_execucao, lista_concluidas):
+def gerenciar_subtarefas(pendentes, em_andamento, lista_realizado):
     print("--- Gerenciar Sub-tarefas (Marcar/Desmarcar) ---")
     print("De qual lista você quer gerenciar as sub-tarefas?")
-    print("[1] ⏲️ A Fazer")
-    print("[2] ✨ Em Execução")
+    print("[1] ⏲️ Pendentes")
+    print("[2] ✨ Em Andamento")
     print("[C] Cancelar")
     
     escolha_lista = input("Escolha a lista (1, 2 ou C): ").strip().lower()
     lista_alvo, nome_lista = None, ""
 
-    if escolha_lista == '1': lista_alvo, nome_lista = a_fazer, "A Fazer"
-    elif escolha_lista == '2': lista_alvo, nome_lista = em_execucao, "Em Execução"
+    if escolha_lista == '1': lista_alvo, nome_lista = pendentes, "Pendentes"
+    elif escolha_lista == '2': lista_alvo, nome_lista = em_andamento, "Em Andamento"
     elif escolha_lista == 'c': print("Operação cancelada."); time.sleep(1); return
     else: print("ERRO: Lista inválida."); time.sleep(1); return
 
@@ -328,31 +328,31 @@ def gerenciar_subtarefas(a_fazer, em_execucao, lista_concluidas):
         if all(s.concluida for s in tarefa_selecionada.subtarefas):
             print(f"\nAVISO: Todas as sub-tarefas de '{tarefa_selecionada.titulo}' estão concluídas.")
             time.sleep(1)
-            resposta = input("Deseja mover a tarefa principal para '✅ Concluídas'? [S/N]: ").strip().upper()
+            resposta = input("Deseja mover a tarefa principal para '✅ Realizado'? [S/N]: ").strip().upper()
             if resposta == 'S':
                 periodo = perguntar_periodo()
                 tarefa_selecionada.periodo = periodo
-                lista_concluidas.append(tarefa_selecionada)
+                lista_realizado.append(tarefa_selecionada)
                 lista_alvo.pop(idx_tarefa)
-                print(f"Tarefa '{tarefa_selecionada.titulo}' movida para 'Concluídas'!")
+                print(f"Tarefa '{tarefa_selecionada.titulo}' movida para 'Realizado'!")
 
     except (ValueError, IndexError):
         print("ERRO: Número inválido.")
     
     time.sleep(1)
 
-def editar_tarefa(a_fazer, em_execucao):
+def editar_tarefa(pendentes, em_andamento):
     print("--- Editar Tarefa ---")
     print("De qual lista você deseja editar a tarefa?")
-    print("[1] ⏲️ A Fazer")
-    print("[2] ✨ Em Execução")
+    print("[1] ⏲️ Pendentes")
+    print("[2] ✨ Em Andamento")
     print("[C] Cancelar")
     
     escolha_lista = input("Escolha a lista (1, 2 ou C): ").strip().lower()
     lista_alvo, nome_lista = None, ""
 
-    if escolha_lista == '1': lista_alvo, nome_lista = a_fazer, "A Fazer"
-    elif escolha_lista == '2': lista_alvo, nome_lista = em_execucao, "Em Execução"
+    if escolha_lista == '1': lista_alvo, nome_lista = pendentes, "Pendentes"
+    elif escolha_lista == '2': lista_alvo, nome_lista = em_andamento, "Em Andamento"
     elif escolha_lista == 'c': print("Operação cancelada."); time.sleep(1); return
     else: print("ERRO: Lista inválida."); time.sleep(1); return
 
@@ -443,17 +443,17 @@ def editar_tarefa(a_fazer, em_execucao):
         time.sleep(1)
 
 
-def gerar_relatorio_e_salvar_SIMPLES(data, a_fazer, em_execucao, concluidas, data_hoje_iso):
+def gerar_relatorio_e_salvar_SIMPLES(data, pendentes, em_andamento, realizado, data_hoje_iso):
     limpar_tela()
     print("--- Gerando Relatório do Dia e Salvando Planejamento ---")
     
     data_simples_arquivo = datetime.datetime.now().strftime("%d-%m-%Y")
     nome_arquivo_relatorio = f"Relatorio_{data_simples_arquivo}.txt"
 
-    concluidas_manha = [t for t in concluidas if t.periodo == 'M']
-    concluidas_tarde = [t for t in concluidas if t.periodo == 'T']
-    execucao_manha = [t for t in em_execucao if t.periodo == 'M']
-    execucao_tarde = [t for t in em_execucao if t.periodo == 'T']
+    realizado_manha = [t for t in realizado if t.periodo == 'M']
+    realizado_tarde = [t for t in realizado if t.periodo == 'T']
+    em_andamento_manha = [t for t in em_andamento if t.periodo == 'M']
+    em_andamento_tarde = [t for t in em_andamento if t.periodo == 'T']
     
     def formatar_subtarefa_relatorio(subtarefa):
         check = "✅" if subtarefa.concluida else ""
@@ -466,56 +466,56 @@ def gerar_relatorio_e_salvar_SIMPLES(data, a_fazer, em_execucao, concluidas, dat
             
             f.write("+++++++\n|| MANHÃ ||\n=======\n\n")
             
-            f.write("[ ✅ CONCLUÍDAS - MANHÃ ]\n")
-            if not concluidas_manha: f.write("- Nenhuma\n")
-            for t in concluidas_manha:
+            f.write("[ ✅ REALIZADO - MANHÃ ]\n")
+            if not realizado_manha: f.write("- Nenhuma\n")
+            for t in realizado_manha:
                 f.write(f"+ {t.titulo} ✅\n")
                 for s in t.subtarefas: f.write(formatar_subtarefa_relatorio(s))
             
-            f.write("\n[ ✨ TAREFAS INICIADAS - MANHÃ ]\n")
-            if not execucao_manha: f.write("- Nenhuma\n")
-            for t in execucao_manha:
+            f.write("\n[ ✨ TAREFAS EM ANDAMENTO - MANHÃ ]\n")
+            if not em_andamento_manha: f.write("- Nenhuma\n")
+            for t in em_andamento_manha:
                 f.write(f"+ {t.titulo}\n")
                 for s in t.subtarefas: f.write(formatar_subtarefa_relatorio(s))
             
             f.write("\n\n+++++++\n|| TARDE ||\n=======\n\n")
             
-            f.write("[ ✅ CONCLUÍDAS - TARDE ]\n")
-            if not concluidas_tarde: f.write("- Nenhuma\n")
-            for t in concluidas_tarde:
+            f.write("[ ✅ REALIZADO - TARDE ]\n")
+            if not realizado_tarde: f.write("- Nenhuma\n")
+            for t in realizado_tarde:
                 f.write(f"+ {t.titulo} ✅\n")
                 for s in t.subtarefas: f.write(formatar_subtarefa_relatorio(s))
 
-            f.write("\n[ ✨ TAREFAS INICIADAS - TARDE ]\n")
-            if not execucao_tarde: f.write("- Nenhuma\n")
-            for t in execucao_tarde:
+            f.write("\n[ ✨ TAREFAS EM ANDAMENTO - TARDE ]\n")
+            if not em_andamento_tarde: f.write("- Nenhuma\n")
+            for t in em_andamento_tarde:
                 f.write(f"+ {t.titulo}\n")
                 for s in t.subtarefas: f.write(formatar_subtarefa_relatorio(s))
 
             f.write("\n\n=====================\nPLANEJAMENTO (Próximo Dia)\n=====================\n\n")
             
-            if not a_fazer and not em_execucao: 
+            if not pendentes and not em_andamento: 
                 f.write("- Nada planejado.\n")
             
-            if a_fazer:
-                f.write("[ ⏲️ A FAZER ]\n")
-                for t in a_fazer:
+            if pendentes:
+                f.write("[ ⏲️ PENDENTES ]\n")
+                for t in pendentes:
                     f.write(f"+ {t.titulo}\n")
                     for s in t.subtarefas: f.write(formatar_subtarefa_relatorio(s).replace("✅", ""))
             
-            if em_execucao:
-                f.write("\n[ ✨ INICIADAS (A Continuar) ]\n")
-                for t in em_execucao:
+            if em_andamento:
+                f.write("\n[ ✨ EM ANDAMENTO (A Continuar) ]\n")
+                for t in em_andamento:
                     f.write(f"+ {t.titulo}\n")
                     for s in t.subtarefas: f.write(formatar_subtarefa_relatorio(s).replace("✅", ""))
             
         print(f"\nSucesso! Relatório do dia salvo como: {nome_arquivo_relatorio}")
 
-        salvar_planejamento(a_fazer, em_execucao, data_hoje_iso)
+        salvar_planejamento(pendentes, em_andamento, data_hoje_iso)
         
-        a_fazer.clear()
-        em_execucao.clear()
-        concluidas.clear()
+        pendentes.clear()
+        em_andamento.clear()
+        realizado.clear()
         
         print("\nRelatório gerado e planejamento salvo. O dia foi encerrado.")
         print("As listas foram limpas.")
@@ -538,51 +538,51 @@ def main():
     hoje_formatado_iso = hoje_obj.date().isoformat() 
     
     print("Iniciando o Gerador de Relatórios...")
-    tarefas_a_fazer, tarefas_em_execucao = carregar_planejamento(hoje_formatado_iso)
-    tarefas_concluidas = []  
+    tarefas_pendentes, tarefas_em_andamento = carregar_planejamento(hoje_formatado_iso)
+    tarefas_realizado = []  
     
-    if tarefas_a_fazer or tarefas_em_execucao:
-        salvar_planejamento(tarefas_a_fazer, tarefas_em_execucao, hoje_formatado_iso)
+    if tarefas_pendentes or tarefas_em_andamento:
+        salvar_planejamento(tarefas_pendentes, tarefas_em_andamento, hoje_formatado_iso)
 
     time.sleep(1)
 
     while True:
-        mostrar_dashboard(hoje_formatado_app, tarefas_a_fazer, tarefas_em_execucao, tarefas_concluidas)
+        mostrar_dashboard(hoje_formatado_app, tarefas_pendentes, tarefas_em_andamento, tarefas_realizado)
         mostrar_menu()
         
         escolha = input("Escolha uma opção (1-8): ")
         print()
 
         if escolha == '1':
-            adicionar_nova_tarefa(tarefas_a_fazer, tarefas_em_execucao, tarefas_concluidas)
-            salvar_planejamento(tarefas_a_fazer, tarefas_em_execucao, hoje_formatado_iso)
+            adicionar_nova_tarefa(tarefas_pendentes, tarefas_em_andamento, tarefas_realizado)
+            salvar_planejamento(tarefas_pendentes, tarefas_em_andamento, hoje_formatado_iso)
         
         elif escolha == '2':
-            ativar_tarefa(tarefas_a_fazer, tarefas_em_execucao)
-            salvar_planejamento(tarefas_a_fazer, tarefas_em_execucao, hoje_formatado_iso)
+            ativar_tarefa(tarefas_pendentes, tarefas_em_andamento)
+            salvar_planejamento(tarefas_pendentes, tarefas_em_andamento, hoje_formatado_iso)
 
         elif escolha == '3':
-            concluir_tarefa(tarefas_em_execucao, tarefas_concluidas)
-            salvar_planejamento(tarefas_a_fazer, tarefas_em_execucao, hoje_formatado_iso)
+            concluir_tarefa(tarefas_em_andamento, tarefas_realizado)
+            salvar_planejamento(tarefas_pendentes, tarefas_em_andamento, hoje_formatado_iso)
         
         elif escolha == '4':
-            gerenciar_subtarefas(tarefas_a_fazer, tarefas_em_execucao, tarefas_concluidas)
-            salvar_planejamento(tarefas_a_fazer, tarefas_em_execucao, hoje_formatado_iso)
+            gerenciar_subtarefas(tarefas_pendentes, tarefas_em_andamento, tarefas_realizado)
+            salvar_planejamento(tarefas_pendentes, tarefas_em_andamento, hoje_formatado_iso)
         
         elif escolha == '5':
-            editar_tarefa(tarefas_a_fazer, tarefas_em_execucao)
-            salvar_planejamento(tarefas_a_fazer, tarefas_em_execucao, hoje_formatado_iso)
+            editar_tarefa(tarefas_pendentes, tarefas_em_andamento)
+            salvar_planejamento(tarefas_pendentes, tarefas_em_andamento, hoje_formatado_iso)
 
         elif escolha == '6':
-            excluir_tarefa(tarefas_a_fazer, tarefas_em_execucao)
-            salvar_planejamento(tarefas_a_fazer, tarefas_em_execucao, hoje_formatado_iso)
+            excluir_tarefa(tarefas_pendentes, tarefas_em_andamento)
+            salvar_planejamento(tarefas_pendentes, tarefas_em_andamento, hoje_formatado_iso)
         
         elif escolha == '7':
-            gerar_relatorio_e_salvar_SIMPLES(hoje_formatado_app, tarefas_a_fazer, tarefas_em_execucao, tarefas_concluidas, hoje_formatado_iso)
+            gerar_relatorio_e_salvar_SIMPLES(hoje_formatado_app, tarefas_pendentes, tarefas_em_andamento, tarefas_realizado, hoje_formatado_iso)
         
         elif escolha == '8':
             print("Saindo do Gerador de Relatórios...")
-            salvar_planejamento(tarefas_a_fazer, tarefas_em_execucao, hoje_formatado_iso)
+            salvar_planejamento(tarefas_pendentes, tarefas_em_andamento, hoje_formatado_iso)
             print("Planejamento atual salvo. Até mais!")
             break
         
