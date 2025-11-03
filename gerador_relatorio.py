@@ -59,23 +59,11 @@ NOME_ARQUIVO_PLANEJAMENTO = "planejamento_store.json"
 NOME_ARQUIVO_REGRAS = "regras_recorrentes.json"
 
 MAPA_DIAS_USUARIO_PARA_PYTHON = {
-    2: 0, 
-    3: 1, 
-    4: 2, 
-    5: 3, 
-    6: 4, 
-    7: 5, 
-    1: 6  
+    2: 0, 3: 1, 4: 2, 5: 3, 6: 4, 7: 5, 1: 6  
 }
 
 MAPA_PYTHON_PARA_USUARIO_TEXTO = {
-    0: "Seg (2)", 
-    1: "Ter (3)", 
-    2: "Qua (4)", 
-    3: "Qui (5)", 
-    4: "Sex (6)", 
-    5: "Sab (7)", 
-    6: "Dom (1)"
+    0: "Seg (2)", 1: "Ter (3)", 2: "Qua (4)", 3: "Qui (5)", 4: "Sex (6)", 5: "Sab (7)", 6: "Dom (1)"
 }
 
 def carregar_regras():
@@ -191,7 +179,7 @@ def mostrar_menu():
     print("[3] Concluir tarefa (Mover de 'Em Andamento' -> 'Realizado')")
     print("[4] Gerenciar Sub-tarefas (Marcar/Desmarcar)")
     print("[5] Editar Tarefa (Título, Sub-tarefas)")
-    print("[6] Gerenciar Tarefas Recorrentes")
+    print("[6] Tarefas Recorrentes")
     print("[7] Excluir Tarefa")
     print("[8] Gerar Relatório do Dia e Salvar Planejamento")
     print("[9] Sair (sem salvar relatório)")
@@ -484,7 +472,7 @@ def editar_tarefa(pendentes, em_andamento):
 def gerenciar_regras_menu(regras):
     while True:
         limpar_tela()
-        print("--- Gerenciador de Tarefas Recorrentes ---")
+        print("--- Tarefas Recorrentes ---")
         
         if not regras:
             print("\nNenhuma regra de recorrência cadastrada.")
@@ -501,8 +489,9 @@ def gerenciar_regras_menu(regras):
                 elif regra['tipo'] == 'mensal':
                     print(f"  [{i}] '{titulo}' (Mensal: todo dia {regra['dia_mes']})")
 
-        print("\n[1] Adicionar Nova Regra Recorrente")
-        print("[2] Excluir Regra Recorrente")
+        print("\n[1] Adicionar Nova Regra")
+        print("[2] Editar Regra")
+        print("[3] Excluir Regra")
         print("[V] Voltar ao Menu Principal")
         
         escolha = input("Escolha uma opção: ").strip().lower()
@@ -511,6 +500,9 @@ def gerenciar_regras_menu(regras):
             adicionar_regra_recorrente(regras)
             salvar_regras(regras)
         elif escolha == '2':
+            editar_regra_recorrente(regras)
+            salvar_regras(regras)
+        elif escolha == '3':
             excluir_regra_recorrente(regras)
             salvar_regras(regras)
         elif escolha == 'v':
@@ -532,44 +524,98 @@ def adicionar_regra_recorrente(regras):
         if not sub_titulo: break
         modelo_tarefa.adicionar_subtarefa(sub_titulo)
 
+    nova_regra_dict = _perguntar_detalhes_regra()
+    if nova_regra_dict is None:
+        print("Criação de regra cancelada."); time.sleep(1); return
+
+    regras.append({
+        "modelo": modelo_tarefa.to_dict(),
+        "regra": nova_regra_dict
+    })
+    print(f"\nRegra para '{titulo}' criada com sucesso!")
+    time.sleep(1)
+
+def _perguntar_detalhes_regra():
     print("\n--- Definir Regra de Recorrência ---")
     print("[1] Diária (Todo dia)")
     print("[2] Semanal (Um dia da semana)")
     print("[3] Mensal (Um dia do mês)")
     
     tipo_regra_str = input("Escolha o tipo (1, 2 ou 3): ").strip()
-    nova_regra = {}
-
+    
     if tipo_regra_str == '1':
-        nova_regra = {"tipo": "diaria"}
+        return {"tipo": "diaria"}
     elif tipo_regra_str == '2':
         try:
             dia_usuario = int(input("Digite o dia da semana (1=Dom, 2=Seg, 3=Ter, ..., 7=Sab): "))
             if dia_usuario in MAPA_DIAS_USUARIO_PARA_PYTHON:
                 dia_semana_interno = MAPA_DIAS_USUARIO_PARA_PYTHON[dia_usuario]
-                nova_regra = {"tipo": "semanal", "dia_semana": dia_semana_interno}
+                return {"tipo": "semanal", "dia_semana": dia_semana_interno}
             else:
                 raise ValueError
         except ValueError:
-            print("Dia da semana inválido. A regra não foi criada."); time.sleep(1); return
+            print("Dia da semana inválido."); return None
     elif tipo_regra_str == '3':
         try:
             dia_mes = int(input("Digite o dia do mês (1-31): "))
             if 1 <= dia_mes <= 31:
-                nova_regra = {"tipo": "mensal", "dia_mes": dia_mes}
+                return {"tipo": "mensal", "dia_mes": dia_mes}
             else:
                 raise ValueError
         except ValueError:
-            print("Dia do mês inválido. A regra não foi criada."); time.sleep(1); return
+            print("Dia do mês inválido."); return None
     else:
-        print("Tipo de regra inválido. A regra não foi criada."); time.sleep(1); return
+        print("Tipo de regra inválido."); return None
 
-    regras.append({
-        "modelo": modelo_tarefa.to_dict(),
-        "regra": nova_regra
-    })
-    print(f"\nRegra para '{titulo}' criada com sucesso!")
+def editar_regra_recorrente(regras):
+    if not regras:
+        print("Não há regras para editar."); time.sleep(1); return
+
+    print("\n--- Editar Regra Recorrente ---")
+    try:
+        idx_str = input("Digite o NÚMERO da regra que deseja EDITAR: ")
+        idx = int(idx_str) - 1
+        if not (0 <= idx < len(regras)):
+            raise IndexError
+        
+        regra_selecionada = regras[idx]
+        titulo_atual = regra_selecionada['modelo']['titulo']
+        
+        print(f"\n--- Editando Regra: {titulo_atual} ---")
+        print("[1] Editar Título do Modelo")
+        print("[2] Editar Regra de Recorrência (Tipo/Dia)")
+        print("[V] Voltar")
+        
+        escolha = input("O que deseja editar? ").strip().lower()
+
+        if escolha == '1':
+            novo_titulo = input(f"Digite o novo TÍTULO (anterior: {titulo_atual}): ")
+            if novo_titulo:
+                regra_selecionada['modelo']['titulo'] = novo_titulo
+                print("Título do modelo atualizado!")
+            else:
+                print("Título não pode ser vazio. Nenhuma alteração feita.")
+        
+        elif escolha == '2':
+            print("Por favor, defina a NOVA regra de recorrência.")
+            nova_regra_dict = _perguntar_detalhes_regra()
+            if nova_regra_dict:
+                regra_selecionada['regra'] = nova_regra_dict
+                print("Regra de recorrência atualizada!")
+            else:
+                print("Edição da regra cancelada.")
+                
+        elif escolha == 'v':
+            return
+        
+        else:
+            print("Opção inválida.")
+        
+    except (ValueError, IndexError):
+        print("ERRO: Número inválido.")
+    
     time.sleep(1)
+
 
 def excluir_regra_recorrente(regras):
     if not regras:
