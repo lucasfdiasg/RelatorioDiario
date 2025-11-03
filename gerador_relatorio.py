@@ -3,6 +3,7 @@ import os
 import platform 
 import json
 import time
+import copy
 
 class SubTarefa:
     def __init__(self, titulo, concluida=False):
@@ -144,7 +145,8 @@ def mostrar_dashboard(data, pendentes, em_andamento, realizado):
     if not pendentes: print("- Vazio")
     else:
         for i, tarefa_obj in enumerate(pendentes, start=1):
-            print(f"\n  [{i}] {tarefa_obj.titulo}")
+            periodo_str = f"({tarefa_obj.periodo})" if tarefa_obj.periodo else ""
+            print(f"\n  [{i}] {tarefa_obj.titulo} {periodo_str}")
             if tarefa_obj.subtarefas:
                 print(f"      Sub-tarefas:")
                 for j, sub in enumerate(tarefa_obj.subtarefas, start=1):
@@ -208,8 +210,10 @@ def adicionar_nova_tarefa(lista_pendentes, lista_em_andamento, lista_realizado):
     escolha_lista = input("Escolha a lista (1, 2, 3 ou C): ").strip().lower()
     
     if escolha_lista == '1':
+        periodo = perguntar_periodo()
+        nova_tarefa.periodo = periodo
         lista_pendentes.append(nova_tarefa)
-        print(f"\nTarefa '{nova_tarefa.titulo}' adicionada em 'Pendentes'!")
+        print(f"\nTarefa '{nova_tarefa.titulo}' adicionada em 'Pendentes' ({periodo})!")
         
     elif escolha_lista == '2':
         periodo = perguntar_periodo()
@@ -248,13 +252,15 @@ def ativar_tarefa(lista_pendentes, lista_em_andamento):
         idx = int(idx_str) - 1 
         if idx < 0: raise IndexError
 
-        periodo = perguntar_periodo()
-        
         tarefa_movida = lista_pendentes.pop(idx) 
-        tarefa_movida.periodo = periodo 
+        
+        if not tarefa_movida.periodo:
+            print("Definindo período para esta tarefa:")
+            tarefa_movida.periodo = perguntar_periodo()
+        
         lista_em_andamento.append(tarefa_movida)
         
-        print(f"Tarefa '{tarefa_movida.titulo}' movida para 'Em Andamento' ({periodo})!")
+        print(f"Tarefa '{tarefa_movida.titulo}' movida para 'Em Andamento' ({tarefa_movida.periodo})!")
     except (ValueError, IndexError):
         print("ERRO: Número inválido.")
     time.sleep(1)
@@ -267,13 +273,15 @@ def concluir_tarefa(lista_em_andamento, lista_realizado):
         idx_str = input("Digite o NÚMERO da tarefa 'Em Andamento' que deseja concluir: ")
         idx = int(idx_str) - 1 
         if idx < 0: raise IndexError
-        
-        periodo = perguntar_periodo()
-        
+                
         tarefa_movida = lista_em_andamento.pop(idx)
-        tarefa_movida.periodo = periodo 
+        
+        if not tarefa_movida.periodo:
+            print("Definindo período para esta tarefa:")
+            tarefa_movida.periodo = perguntar_periodo()
+            
         lista_realizado.append(tarefa_movida)
-        print(f"Tarefa '{tarefa_movida.titulo}' marcada como 'Realizado' ({periodo})!")
+        print(f"Tarefa '{tarefa_movida.titulo}' marcada como 'Realizado' ({tarefa_movida.periodo})!")
     except (ValueError, IndexError):
         print("ERRO: Número inválido.")
     time.sleep(1)
@@ -357,8 +365,10 @@ def gerenciar_subtarefas(pendentes, em_andamento, lista_realizado):
             time.sleep(1)
             resposta = input("Deseja mover a tarefa principal para '✅ Realizado'? [S/N]: ").strip().upper()
             if resposta == 'S':
-                periodo = perguntar_periodo()
-                tarefa_selecionada.periodo = periodo
+                if not tarefa_selecionada.periodo:
+                    print("Definindo período para esta tarefa:")
+                    tarefa_selecionada.periodo = perguntar_periodo()
+                
                 lista_realizado.append(tarefa_selecionada)
                 lista_alvo.pop(idx_tarefa)
                 print(f"Tarefa '{tarefa_selecionada.titulo}' movida para 'Realizado'!")
@@ -395,8 +405,10 @@ def editar_tarefa(pendentes, em_andamento):
 
         while True:
             limpar_tela()
+            periodo_str = f"({tarefa_selecionada.periodo})" if tarefa_selecionada.periodo else "(Sem período def.)"
             print(f"--- Editando Tarefa: {tarefa_selecionada.titulo} ---")
             print(f"[1] Editar Título Principal ({tarefa_selecionada.titulo})")
+            print(f"[2] Editar Período Padrão {periodo_str}")
             print("\nSub-tarefas:")
             if not tarefa_selecionada.subtarefas:
                 print("- Nenhuma -")
@@ -404,9 +416,9 @@ def editar_tarefa(pendentes, em_andamento):
                 check = "✓" if sub.concluida else " "
                 print(f"  [{i}] [{check}] {sub.titulo}")
             
-            print("\n[2] Adicionar nova Sub-tarefa")
-            print("[3] Editar texto de uma Sub-tarefa")
-            print("[4] Excluir uma Sub-tarefa")
+            print("\n[3] Adicionar nova Sub-tarefa")
+            print("[4] Editar texto de uma Sub-tarefa")
+            print("[5] Excluir uma Sub-tarefa")
             print("[V] Voltar ao menu principal")
             
             escolha_edicao = input("\nEscolha uma opção de edição: ").strip().lower()
@@ -421,13 +433,19 @@ def editar_tarefa(pendentes, em_andamento):
                 time.sleep(1)
             
             elif escolha_edicao == '2':
+                novo_periodo = perguntar_periodo()
+                tarefa_selecionada.periodo = novo_periodo
+                print(f"Período atualizado para: {novo_periodo}")
+                time.sleep(1)
+            
+            elif escolha_edicao == '3':
                 novo_sub_titulo = input("Digite a nova Sub-tarefa: ")
                 if novo_sub_titulo:
                     tarefa_selecionada.adicionar_subtarefa(novo_sub_titulo)
                     print("Sub-tarefa adicionada!")
                 time.sleep(1)
 
-            elif escolha_edicao == '3':
+            elif escolha_edicao == '4':
                 if not tarefa_selecionada.subtarefas:
                     print("Não há sub-tarefas para editar."); time.sleep(1); continue
                 try:
@@ -444,7 +462,7 @@ def editar_tarefa(pendentes, em_andamento):
                     print("Número de sub-tarefa inválido.")
                 time.sleep(1)
 
-            elif escolha_edicao == '4':
+            elif escolha_edicao == '5':
                 if not tarefa_selecionada.subtarefas:
                     print("Não há sub-tarefas para excluir."); time.sleep(1); continue
                 try:
@@ -475,35 +493,45 @@ def gerenciar_regras_menu(regras):
         print("--- Tarefas Recorrentes ---")
         
         if not regras:
-            print("\nNenhuma regra de recorrência cadastrada.")
+            print("\nNenhuma tarefa recorrente cadastrada.")
         else:
-            print("\nRegras Atuais:")
+            print("\nTarefas Recorrentes Atuais:")
             for i, regra_info in enumerate(regras, start=1):
                 titulo = regra_info['modelo']['titulo']
+                periodo = regra_info['modelo'].get('periodo', 'N/D')
                 regra = regra_info['regra']
+                
+                regra_str = ""
                 if regra['tipo'] == 'diaria':
-                    print(f"  [{i}] '{titulo}' (Diária)")
+                    regra_str = "Diária"
                 elif regra['tipo'] == 'semanal':
                     dia_texto = MAPA_PYTHON_PARA_USUARIO_TEXTO.get(regra['dia_semana'], "Inválido")
-                    print(f"  [{i}] '{titulo}' (Semanal: toda {dia_texto})")
+                    regra_str = f"Semanal: toda {dia_texto}"
                 elif regra['tipo'] == 'mensal':
-                    print(f"  [{i}] '{titulo}' (Mensal: todo dia {regra['dia_mes']})")
+                    regra_str = f"Mensal: todo dia {regra['dia_mes']}"
+                
+                print(f"  [{i}] '{titulo}' (Período: {periodo}) (Regra: {regra_str})")
 
-        print("\n[1] Adicionar Nova Regra")
-        print("[2] Editar Regra")
-        print("[3] Excluir Regra")
+
+        print("\n[1] Adicionar Tarefa Recorrente")
+        print("[2] Editar Tarefa Recorrente")
+        print("[3] Duplicar Tarefa Recorrente")
+        print("[4] Excluir Tarefa Recorrente")
         print("[V] Voltar ao Menu Principal")
         
         escolha = input("Escolha uma opção: ").strip().lower()
 
         if escolha == '1':
-            adicionar_regra_recorrente(regras)
+            adicionar_tarefa_recorrente(regras)
             salvar_regras(regras)
         elif escolha == '2':
-            editar_regra_recorrente(regras)
+            editar_tarefa_recorrente(regras)
             salvar_regras(regras)
         elif escolha == '3':
-            excluir_regra_recorrente(regras)
+            duplicar_tarefa_recorrente(regras)
+            salvar_regras(regras)
+        elif escolha == '4':
+            excluir_tarefa_recorrente(regras)
             salvar_regras(regras)
         elif escolha == 'v':
             break
@@ -511,8 +539,8 @@ def gerenciar_regras_menu(regras):
             print("Opção inválida.")
             time.sleep(1)
 
-def adicionar_regra_recorrente(regras):
-    print("\n--- Adicionar Nova Regra Recorrente ---")
+def adicionar_tarefa_recorrente(regras):
+    print("\n--- Adicionar Tarefa Recorrente ---")
     titulo = input("Qual o TÍTULO da tarefa modelo? (Obrigatório): ")
     if not titulo:
         print("ERRO: O título não pode ser vazio."); time.sleep(1); return
@@ -524,6 +552,9 @@ def adicionar_regra_recorrente(regras):
         if not sub_titulo: break
         modelo_tarefa.adicionar_subtarefa(sub_titulo)
 
+    print("\nDefina o PERÍODO padrão para esta tarefa:")
+    modelo_tarefa.periodo = perguntar_periodo()
+
     nova_regra_dict = _perguntar_detalhes_regra()
     if nova_regra_dict is None:
         print("Criação de regra cancelada."); time.sleep(1); return
@@ -532,7 +563,7 @@ def adicionar_regra_recorrente(regras):
         "modelo": modelo_tarefa.to_dict(),
         "regra": nova_regra_dict
     })
-    print(f"\nRegra para '{titulo}' criada com sucesso!")
+    print(f"\nTarefa recorrente '{titulo}' criada com sucesso!")
     time.sleep(1)
 
 def _perguntar_detalhes_regra():
@@ -567,13 +598,13 @@ def _perguntar_detalhes_regra():
     else:
         print("Tipo de regra inválido."); return None
 
-def editar_regra_recorrente(regras):
+def editar_tarefa_recorrente(regras):
     if not regras:
-        print("Não há regras para editar."); time.sleep(1); return
+        print("Não há tarefas recorrentes para editar."); time.sleep(1); return
 
-    print("\n--- Editar Regra Recorrente ---")
+    print("\n--- Editar Tarefa Recorrente ---")
     try:
-        idx_str = input("Digite o NÚMERO da regra que deseja EDITAR: ")
+        idx_str = input("Digite o NÚMERO da tarefa que deseja EDITAR: ")
         idx = int(idx_str) - 1
         if not (0 <= idx < len(regras)):
             raise IndexError
@@ -581,9 +612,10 @@ def editar_regra_recorrente(regras):
         regra_selecionada = regras[idx]
         titulo_atual = regra_selecionada['modelo']['titulo']
         
-        print(f"\n--- Editando Regra: {titulo_atual} ---")
+        print(f"\n--- Editando: {titulo_atual} ---")
         print("[1] Editar Título do Modelo")
         print("[2] Editar Regra de Recorrência (Tipo/Dia)")
+        print("[3] Editar Período Padrão (Manhã/Tarde)")
         print("[V] Voltar")
         
         escolha = input("O que deseja editar? ").strip().lower()
@@ -604,6 +636,12 @@ def editar_regra_recorrente(regras):
                 print("Regra de recorrência atualizada!")
             else:
                 print("Edição da regra cancelada.")
+        
+        elif escolha == '3':
+            print(f"Período atual: {regra_selecionada['modelo'].get('periodo', 'N/D')}")
+            novo_periodo = perguntar_periodo()
+            regra_selecionada['modelo']['periodo'] = novo_periodo
+            print(f"Período padrão atualizado para: {novo_periodo}")
                 
         elif escolha == 'v':
             return
@@ -616,18 +654,43 @@ def editar_regra_recorrente(regras):
     
     time.sleep(1)
 
-
-def excluir_regra_recorrente(regras):
+def duplicar_tarefa_recorrente(regras):
     if not regras:
-        print("Não há regras para excluir."); time.sleep(1); return
-    
-    print("\n--- Excluir Regra Recorrente ---")
+        print("Não há tarefas recorrentes para duplicar."); time.sleep(1); return
+
+    print("\n--- Duplicar Tarefa Recorrente ---")
     try:
-        idx_str = input("Digite o NÚMERO da regra que deseja EXCLUIR: ")
+        idx_str = input("Digite o NÚMERO da tarefa que deseja DUPLICAR: ")
+        idx = int(idx_str) - 1
+        if not (0 <= idx < len(regras)):
+            raise IndexError
+        
+        regra_original = regras[idx]
+        regra_copiada = copy.deepcopy(regra_original)
+        
+        regra_copiada['modelo']['titulo'] = f"{regra_copiada['modelo']['titulo']} (Cópia)"
+        
+        regras.append(regra_copiada)
+        
+        print(f"Tarefa '{regra_original['modelo']['titulo']}' duplicada com sucesso!")
+        print(f"Novo nome: '{regra_copiada['modelo']['titulo']}'")
+
+    except (ValueError, IndexError):
+        print("ERRO: Número inválido.")
+    
+    time.sleep(2)
+
+def excluir_tarefa_recorrente(regras):
+    if not regras:
+        print("Não há tarefas recorrentes para excluir."); time.sleep(1); return
+    
+    print("\n--- Excluir Tarefa Recorrente ---")
+    try:
+        idx_str = input("Digite o NÚMERO da tarefa que deseja EXCLUIR: ")
         idx = int(idx_str) - 1
         if 0 <= idx < len(regras):
             regra_excluida = regras.pop(idx)
-            print(f"Regra para '{regra_excluida['modelo']['titulo']}' foi excluída.")
+            print(f"Tarefa recorrente '{regra_excluida['modelo']['titulo']}' foi excluída.")
         else:
             raise IndexError
     except (ValueError, IndexError):

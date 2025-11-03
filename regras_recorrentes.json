@@ -3,7 +3,7 @@
         "modelo": {
             "titulo": "DRACMA",
             "subtarefas": [],
-            "periodo": null
+            "periodo": "M"
         },
         "regra": {
             "tipo": "diaria"
@@ -11,22 +11,12 @@
     },
     {
         "modelo": {
-            "titulo": "Montar pedido com Roseli",
-            "subtarefas": [
-                {
-                    "titulo": "Prefeitura",
-                    "concluida": false
-                },
-                {
-                    "titulo": "Edima",
-                    "concluida": false
-                }
-            ],
-            "periodo": null
+            "titulo": "VERIFICAR E-MAIL",
+            "subtarefas": [],
+            "periodo": "M"
         },
         "regra": {
-            "tipo": "semanal",
-            "dia_semana": 0
+            "tipo": "diaria"
         }
     }
 ]
